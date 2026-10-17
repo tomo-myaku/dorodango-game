@@ -40,7 +40,7 @@ const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(
 scene.add(new THREE.HemisphereLight(0xf5f3dd,0x695441,2.0));
 const sunlight=new THREE.DirectionalLight(0xffefcd,2.8);sunlight.position.set(-3,6,5);scene.add(sunlight);
 const groundMat=new THREE.MeshStandardMaterial({color:'#705339',roughness:1});
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(30,30),groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=-.98;scene.add(ground);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(30,30),groundMat);ground.rotation.x=0;ground.position.y=-.98;scene.add(ground);
 function rng(seed){return()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;}}
 const random=rng(23);
 // Fine compacted earth, not a gravel path. Shallow depressions reveal dark wet soil.
@@ -54,6 +54,7 @@ for(let i=0;i<gp.count;i++){
 }
 groundGeo.computeVertexNormals();
 ground.geometry.dispose();ground.geometry=groundGeo;
+const earthMaterials=['#5c402d','#78523c','#8f6748','#443627','#9b7352'].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1}));
 const wetTint=new THREE.Color('#402d25');
 const patches=[];
 for(let i=0;i<85;i++){
