@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>土と手｜雨あがり</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#d8d1bd;color:#393c2f;font-family:-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;overscroll-behavior:none}
+main{height:100dvh;display:flex;flex-direction:column;max-width:850px;margin:auto;padding:15px 16px max(12px,env(safe-area-inset-bottom))}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}h1{font-size:22px;font-family:serif;font-weight:400;letter-spacing:.16em;margin:3px 0 4px}
+small{font-size:10px;color:#767a68}#scene{position:relative;flex:1;min-height:210px;overflow:hidden;border-radius:20px;background:linear-gradient(#bcc7bb,#bdbaa5 43%,#89725b 44%,#69523d);touch-action:none}canvas{display:block;width:100%;height:100%}
+#message{position:absolute;top:16px;left:0;right:0;text-align:center;color:#fff8e9;text-shadow:0 1px 4px #38291c;font-size:12px;pointer-events:none;line-height:1.7}
+#guide{min-height:54px;text-align:center;font-size:13px;line-height:1.8;margin:12px 3px 6px}
+#progress{height:5px;border-radius:4px;background:#b3aa96;margin:2px 0 13px;overflow:hidden}#progress>span{display:block;width:0;height:100%;background:#536f52;transition:width .18s}
+.actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}button{min-height:46px;border:1px solid #a8a18c;background:#ede7d7;color:#444635;border-radius:25px;padding:9px 15px;font:inherit;font-size:13px}button.main{background:#455c41;color:white;border-color:#455c41}button:disabled{opacity:.4}
+footer{display:flex;justify-content:space-between;padding-top:12px;color:#777966;font-size:10px}
+@media(max-height:640px){main{padding-top:5px}#guide{min-height:34px;margin:3px}#progress{margin-bottom:5px}h1{font-size:18px}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>土と手 <small>— 雨あがり</small></h1><small>どろんこ編｜最初の30秒</small></header>
+<div id="scene"><div id="message">昨日の雨が、土に残っている。</div></div>
+<p id="guide">地面の土を指でこすって集めよう。<br>湿った土が手のひらにたまっていきます。</p>
+<div id="progress"><span></span></div>
+<div class="actions">
+<button id="gather" class="main">土を集める</button>
+<button id="knead" disabled>ぎゅっと握る</button>
+<button id="restart">はじめから</button>
+</div>
+<footer><span id="status">土を探す</span><span>地面をさわっても遊べます</span></footer>
+</main>
+<script type="module">
+import * as THREE from 'https://esm.sh/three@0.180.0';
+const root=document.getElementById('scene'), msg=document.getElementById('message'),guide=document.getElementById('guide'), bar=document.querySelector('#progress span'),status=document.getElementById('status');
+const gather=document.getElementById('gather'),knead=document.getElementById('knead'),restart=document.getElementById('restart');
+const scene=new THREE.Scene();scene.background=new THREE.Color('#bfc5b6');
+scene.fog=new THREE.Fog('#bfc5b6',8,18);
+const camera=new THREE.PerspectiveCamera(39,1,.1,60);camera.position.set(0,2.6,7);camera.lookAt(0,.1,0);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.2;root.prepend(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xf5f3dd,0x695441,2.0));
+const sunlight=new THREE.DirectionalLight(0xffefcd,2.8);sunlight.position.set(-3,6,5);scene.add(sunlight);
+const groundMat=new THREE.MeshStandardMaterial({color:'#705339',roughness:1});
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(30,30),groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=-.98;scene.add(ground);
+function rng(seed){return()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;}}
+const random=rng(23);
+const crumbs=[];
+const earthMaterials=['#5c402d','#78523c','#8f6748','#443627','#9b7352'].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1}));
+for(let i=0;i<160;i++){
+ const s=.018+random()*.12;const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(s,0),earthMaterials[Math.floor(random()*earthMaterials.length)]);
+ mesh.position.set((random()-.5)*8,-.94+s*.35,(random()-.5)*5);mesh.rotation.set(random()*3,random()*3,random()*3);scene.add(mesh);crumbs.push(mesh);
+}
+const speckles=[];
+for(let i=0;i<20;i++){const m=new THREE.Mesh(new THREE.PlaneGeometry(.012+random()*.025,.16+random()*.24),new THREE.MeshBasicMaterial({color:'#7c986d',side:THREE.DoubleSide}));m.rotation.x=-.35;m.rotation.z=(random()-.5)*1.2;m.position.set((random()-.5)*8,-.79,-1+random()*3);scene.add(m);speckles.push(m);}
+const base=new THREE.SphereGeometry(1,48,32),pos=base.getAttribute('position');const vertices=Float32Array.from(pos.array);
+const lumpMat=new THREE.MeshStandardMaterial({color:'#513728',roughness:.98,flatShading:false});
+const ball=new THREE.Mesh(base,lumpMat);ball.position.set(0,-.37,.3);ball.scale.setScalar(.001);scene.add(ball);
+const soilClumps=[];for(let i=0;i<35;i++){const m=new THREE.Mesh(new THREE.IcosahedronGeometry(.04+random()*.055,0),earthMaterials[i%earthMaterials.length]);ball.add(m);soilClumps.push(m);}
+let amount=0,shape=0,step='collect',drag=false,lastX=0,lastY=0,changed=false,particles=[];
+function updateShape(){
+ let avg=0;for(let i=0;i<pos.count;i++){
+ const x=vertices[3*i],y=vertices[3*i+1],z=vertices[3*i+2];
+ const distort=(Math.sin(x*6.5+y*2)+Math.sin(z*9-x*3)*.6+Math.sin(y*12+z*4)*.4)*(.17*(1-shape)+.026);
+ const rad=1+distort;pos.setXYZ(i,x*rad,y*rad,z*rad);avg+=rad;
+ }pos.needsUpdate=true;base.computeVertexNormals();base.computeBoundingSphere();
+ const size=.22+.70*Math.pow(amount,1.1);ball.scale.setScalar(amount>0?size:.001);
+ ball.rotation.y+=.006;
+ soilClumps.forEach((m,i)=>{const a=i*2.399,b=Math.acos(1-2*(i+.5)/35);m.position.set(Math.sin(b)*Math.cos(a)*.89,Math.cos(b)*.89,Math.sin(b)*Math.sin(a)*.89);m.scale.setScalar((1-shape)*.95+.08)});
+ lumpMat.roughness=.99-shape*.22;
+}
+function ui(){
+ bar.style.width=(Math.round((step==='collect'?amount:shape)*100))+'%';
+ knead.disabled=amount<.30||step==='finished';
+ gather.disabled=step!=='collect';
+ if(step==='collect'){
+ status.textContent='湿った土を集める';msg.textContent='地面の土を、手のひらへ。';
+ guide.innerHTML=amount<.30?'地面をなぞるか「土を集める」を押し続けよう。<br>小さな土の塊が育っていきます。':'土がまとまってきた。<br>「ぎゅっと握る」で芯を作れます。';
+ }else if(step==='knead'){
+ status.textContent='小さな芯をつくる';msg.textContent='ぎゅっ、ころころ。';
+ guide.innerHTML='泥の塊を指でなぞって、握り固めよう。<br>少しずつ角が取れて、丸くなります。';
+ knead.textContent='もう一度握る';
+ }else{
+ status.textContent='泥団子の芯ができた';msg.textContent='手のひらに、小さな泥団子。';
+ guide.innerHTML='最初の30秒の試作はここまで。<br>次は土を足す・乾かす・磨く操作につなげます。';
+ knead.disabled=true;
+ }
+}
+function addSoil(delta){
+ if(step!=='collect')return;amount=Math.min(1,amount+delta);
+ for(let i=0;i<crumbs.length;i++){const c=crumbs[i];if(i<amount*80)c.visible=false;}
+ ball.rotation.x+=.03;changed=true;ui();
+}
+function compress(delta){
+ if(step!=='knead')return;shape=Math.min(1,shape+delta);changed=true;
+ if(shape>=1)step='finished';
+ ui();
+}
+gather.addEventListener('pointerdown',e=>{e.preventDefault();gather.setPointerCapture(e.pointerId);drag=true;addSoil(.06);});
+let holding=false;gather.addEventListener('pointerdown',()=>holding=true);
+['pointerup','pointercancel','lostpointercapture'].forEach(t=>gather.addEventListener(t,()=>{holding=false;drag=false;}));
+knead.addEventListener('click',()=>{if(step==='collect'&&amount>=.30){step='knead';shape=0;compress(.06);}else compress(.07);ui();});
+function reset(){amount=0;shape=0;step='collect';drag=false;holding=false;ball.rotation.set(0,0,0);crumbs.forEach(m=>m.visible=true);knead.textContent='ぎゅっと握る';changed=true;ui();}
+restart.addEventListener('click',reset);
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+function touchGround(x,y){const r=renderer.domElement.getBoundingClientRect();mouse.set(((x-r.left)/r.width)*2-1,-((y-r.top)/r.height)*2+1);ray.setFromCamera(mouse,camera);return ray.intersectObject(ground).length>0;}
+root.addEventListener('pointerdown',e=>{if(e.target!==renderer.domElement)return;drag=true;lastX=e.clientX;lastY=e.clientY;root.setPointerCapture(e.pointerId);if(step==='collect'&&touchGround(e.clientX,e.clientY))addSoil(.04);});
+root.addEventListener('pointermove',e=>{if(!drag)return;const travel=Math.hypot(e.clientX-lastX,e.clientY-lastY);if(travel<5)return;
+ if(step==='collect')addSoil(Math.min(.055,travel/600));
+ else if(step==='knead'){compress(Math.min(.07,travel/480));ball.rotation.y+=(e.clientX-lastX)*.009;ball.rotation.x+=(e.clientY-lastY)*.009;}
+ lastX=e.clientX;lastY=e.clientY;});
+['pointerup','pointercancel','lostpointercapture'].forEach(t=>root.addEventListener(t,()=>drag=false));
+function resize(){const w=root.clientWidth,h=root.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/Math.max(1,h);camera.position.z=Math.max(6.5,4.5/camera.aspect);camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(root);resize();reset();
+let last=performance.now();renderer.setAnimationLoop(t=>{const dt=Math.min((t-last)/1000,.1);last=t;if(holding)addSoil(dt*.36);if(changed){updateShape();changed=false;}renderer.render(scene,camera);});
+</script>
+</body></html>
