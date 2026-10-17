@@ -10,7 +10,7 @@
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; }
     body {
-      background: #e8e3d9;
+      background: #ebe5db;
       color: #39392f;
       font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
       overscroll-behavior: none;
@@ -52,6 +52,19 @@
       font-size: 10px;
       letter-spacing: .24em;
     }
+    #view[data-stage="dry"]::after { content: "乾き具合を、見極める"; }
+    #view[data-stage="polish"]::after { content: "なぞった場所から、艶が生まれる"; }
+    #view[data-stage="done"]::after { content: "手で回して、眺める"; }
+    #feedback {
+      position: absolute; bottom: 38px; left: 50%;
+      transform: translate(-50%, 6px);
+      padding: 7px 13px; border-radius: 16px;
+      background: rgba(83, 57, 35, 0.83); color: #fff4df;
+      font-size: 11px; letter-spacing: .05em;
+      max-width: 90%; width: max-content; pointer-events: none;
+      opacity: 0; transition: opacity .22s ease, transform .22s ease;
+    }
+    #feedback.show { opacity: 1; transform: translate(-50%, 0); }
     footer { text-align: center; padding-top: 12px; }
     #title { font: 25px serif; letter-spacing: .14em; margin: 0 0 12px; }
     #hint {
