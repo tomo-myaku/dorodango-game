@@ -22,7 +22,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7));
 renderer.setClearColor(0xe8e3d9, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 0.92;
 view.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -36,11 +36,11 @@ scene.environment = environment.texture;
 room.dispose();
 pmrem.dispose();
 
-scene.add(new THREE.HemisphereLight(0xfff4da, 0x736756, 2.3));
-const key = new THREE.DirectionalLight(0xfff1d4, 3);
+scene.add(new THREE.HemisphereLight(0xffefcf, 0x675244, 1.25));
+const key = new THREE.DirectionalLight(0xffefdf, 2.1);
 key.position.set(-3, 4, 4);
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xe6ecff, 1.2);
+const fill = new THREE.DirectionalLight(0xdce7ff, 0.65);
 fill.position.set(3, 1, -2);
 scene.add(fill);
 
@@ -67,9 +67,9 @@ const material = new THREE.MeshPhysicalMaterial({
   color: 0xffffff,
   vertexColors: true,
   roughness: 0.9,
-  metalness: 0.06,
-  envMapIntensity: 1.25,
-  specularIntensity: 1.15
+  metalness: 0,
+  envMapIntensity: 1.75,
+  specularIntensity: 1
 });
 
 // 局所的な研磨を、フラグメントの粗さへ反映する。
@@ -104,7 +104,7 @@ const shadowCanvas = document.createElement('canvas');
 shadowCanvas.width = shadowCanvas.height = 128;
 const context = shadowCanvas.getContext('2d')!;
 const gradient = context.createRadialGradient(64, 64, 3, 64, 64, 62);
-gradient.addColorStop(0, 'rgba(55,45,26,.22)');
+gradient.addColorStop(0, 'rgba(55,45,26,.33)');
 gradient.addColorStop(1, 'rgba(55,45,26,0)');
 context.fillStyle = gradient;
 context.fillRect(0, 0, 128, 128);
@@ -139,6 +139,28 @@ const axis = new THREE.Vector3();
 const color = new THREE.Color();
 const clamp = THREE.MathUtils.clamp;
 
+// RGB colors are authored in sRGB and converted to linear by THREE.Color.
+// A dry, dusty ochre contrasts strongly with the original damp clay,
+// while polished spots regain the depth of a dark, burnished surface.
+const wetClay = new THREE.Color('#644029');
+const dryClay = new THREE.Color('#bc8752');
+const burnishedClay = new THREE.Color('#75391f');
+const feedback = document.createElement('div');
+feedback.id = 'feedback';
+feedback.setAttribute('aria-hidden', 'true');
+view.appendChild(feedback);
+let feedbackUntil = 0;
+let feedbackTimer: number | undefined;
+function say(text: string) {
+  const now = performance.now();
+  if (now < feedbackUntil) return;
+  feedback.textContent = text;
+  feedback.classList.add('show');
+  feedbackUntil = now + 1100;
+  clearTimeout(feedbackTimer);
+  feedbackTimer = window.setTimeout(() => feedback.classList.remove('show'), 900);
+}
+
 function randomGenerator(value: number) {
   return () => {
     value |= 0;
@@ -171,6 +193,7 @@ function refreshUI() {
     done: '指で回して、光の映り方を眺めてください。'
   };
 
+  view.dataset.stage = stage;
   heading.textContent = titles[stage];
   hint.style.whiteSpace = 'pre-line';
   hint.textContent = hints[stage];
@@ -205,22 +228,28 @@ function reset(useSeed?: number) {
 
   for (let i = 0; i < count; i++) {
     const p = directions[i];
+    // Lumpy at the start, not a nearly finished sphere: rolling should
+    // visibly transform the silhouette before the player starts polishing.
     const shape =
       Math.sin(p.x * 3.6 + phases[0]) *
-        Math.cos(p.y * 3.1 + phases[1]) * 0.14 +
+        Math.cos(p.y * 3.1 + phases[1]) * 0.22 +
       Math.sin(p.z * 4.2 + phases[2]) *
-        Math.cos(p.x * 2.8 + phases[3]) * 0.10 +
-      (p.x * p.x - p.y * p.y) * 0.09;
+        Math.cos(p.x * 2.8 + phases[3]) * 0.16 +
+      Math.sin(p.x * 8 + phases[6]) *
+        Math.sin(p.z * 7 + phases[7]) * 0.035 +
+      (p.x * p.x - p.y * p.y) * 0.12;
     const grain = Math.sin(
       p.x * 53 + Math.sin(p.y * 37 + phases[4]) * 2 +
       p.z * 41 + phases[5]
     );
-    radius[i] = 1 + shape + grain * 0.008;
-    roughness[i] = 0.87 + grain * 0.035;
+    radius[i] = clamp(1 + shape + grain * 0.014, 0.71, 1.36);
+    roughness[i] = 0.90 + grain * 0.025;
     wear[i] = 0;
     damage[i] = 0;
   }
 
+  feedback.classList.remove('show');
+  feedbackUntil = 0;
   stage = 'roll';
   polishing = true;
   water = 0.88;
@@ -244,24 +273,22 @@ function updateMesh() {
       i, p.x * radius[i], p.y * radius[i], p.z * radius[i]
     );
 
-    // 水分由来の濡れた光沢と、研磨による平滑化を分ける。
+    // The color now communicates state: damp dark-brown -> powdery ochre ->
+    // locally burnished chestnut. Color and actual specular roughness differ.
     surface[i] = clamp(
-      roughness[i] - water * 0.12 + scar * 0.4, 0.045, 1
+      roughness[i] - water * 0.16 + scar * 0.45, 0.045, 1
     );
-
-    const fineGrain = Math.sin(p.x * 143 + p.y * 97 + p.z * 131) * 0.018;
-    const crackLine = Math.pow(
-      Math.max(0, 1 - Math.abs(
-        Math.sin(p.x * 24 + Math.sin(p.y * 17) * 1.5 + p.z * 19)
-      ) * 9),
-      2
-    );
-    const crack = scar * (0.22 + crackLine * 0.78);
-    const lightness =
-      0.205 + dryness * 0.125 + fineGrain * roughness[i] -
-      crack * 0.18 - (1 - roughness[i]) * 0.035;
-
-    color.setHSL(0.085, 0.28 + water * 0.1, clamp(lightness, 0.07, 0.5));
+    const dryProgress = clamp((0.88 - water) / 0.71, 0, 1);
+    const polishProgress = clamp((0.80 - roughness[i]) / 0.72, 0, 1);
+    const fineGrain =
+      Math.sin(p.x * 71 + p.y * 105 + p.z * 89) * 0.030 +
+      Math.sin(p.x * 19 - p.y * 25 + p.z * 17) * 0.055;
+    color.copy(wetClay).lerp(dryClay, Math.pow(dryProgress, 0.85));
+    color.lerp(burnishedClay, Math.pow(polishProgress, 0.83) * 0.92);
+    color.multiplyScalar(clamp(
+      1 + fineGrain * (1 - polishProgress * 0.8) -
+      scar * 0.49, 0.38, 1.2
+    ));
     colors[i * 3] = color.r;
     colors[i * 3 + 1] = color.g;
     colors[i * 3 + 2] = color.b;
@@ -303,7 +330,7 @@ function roll(dx: number, dy: number, speed: number) {
   const distance = Math.hypot(dx, dy);
   inverse.copy(ball.quaternion).invert();
   const contact = new THREE.Vector3(0, 0, 1).applyQuaternion(inverse);
-  const quality = Math.exp(-Math.pow((speed - 0.55) / 0.9, 2));
+  const quality = Math.exp(-Math.pow((speed - 0.55) / 1.0, 2));
   const force = clamp((speed - 1.7) / 2, 0, 1);
 
   for (let i = 0; i < count; i++) {
@@ -311,12 +338,12 @@ function roll(dx: number, dy: number, speed: number) {
     const weight = Math.pow(clamp((dot - 0.2) / 0.8, 0, 1), 1.5);
     if (weight === 0) continue;
 
-    const correction = 1 - Math.exp(-distance * 8 * quality * weight);
+    const correction = 1 - Math.exp(-distance * 13 * quality * weight);
     radius[i] += (1 - radius[i]) * correction;
 
     // 乱暴な動きは局所的なへこみを生む。後から均し直せる。
-    radius[i] -= distance * force * weight * 0.085;
-    radius[i] = clamp(radius[i], 0.76, 1.25);
+    radius[i] -= distance * force * weight * 0.16;
+    radius[i] = clamp(radius[i], 0.71, 1.36);
     roughness[i] = Math.max(
       0.67, roughness[i] - distance * weight * quality * 0.06
     );
@@ -327,14 +354,14 @@ function roll(dx: number, dy: number, speed: number) {
 }
 
 function polishStamp(center: THREE.Vector3, travel: number, speed: number) {
-  const suitableWater = Math.exp(-Math.pow((water - 0.32) / 0.24, 2));
+  const suitableWater = Math.exp(-Math.pow((water - 0.36) / 0.31, 2));
   const suitableSpeed = Math.exp(-Math.pow((speed - 0.42) / 0.65, 2));
   const harsh = clamp((speed - 1.4) / 1.5, 0, 1);
 
   for (let i = 0; i < count; i++) {
     const dot = directions[i].dot(center);
-    if (dot < 0.978) continue;
-    const weight = Math.pow((dot - 0.978) / 0.022, 2);
+    if (dot < 0.962) continue;
+    const weight = Math.pow((dot - 0.962) / 0.038, 1.7);
     const dose = travel * weight;
     wear[i] += dose;
 
@@ -342,7 +369,7 @@ function polishStamp(center: THREE.Vector3, travel: number, speed: number) {
     const skill = suitableWater * suitableSpeed * (1 - overwork);
 
     roughness[i] = clamp(
-      roughness[i] - dose * skill * 1.7 +
+      roughness[i] - dose * skill * 3.8 +
       dose * (harsh * 0.28 + overwork * 0.32),
       0.045, 0.98
     );
@@ -400,11 +427,19 @@ view.addEventListener('pointermove', event => {
     // 極端に大きい単発イベントは分割して安定させる。
     const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 0.025));
     for (let i = 0; i < steps; i++) roll(dx / steps, dy / steps, speed);
+    if (speed > 2.2) say('あっ、少し押しすぎた。');
+    else if (Math.hypot(dx, dy) > 0.012) say('角が、少しずつ丸くなる。');
   } else if (stage === 'done' || (stage === 'polish' && !polishing)) {
     rotate(dx, dy);
   } else if (stage === 'polish') {
     const hit = localHit(event.clientX, event.clientY);
-    if (hit && lastHit) polishStroke(lastHit, hit, speed);
+    if (hit && lastHit) {
+      polishStroke(lastHit, hit, speed);
+      if (water > 0.66) say('まだ湿っていて、艶がのりにくい。');
+      else if (water < 0.15) say('乾いた表面に、細かな傷。');
+      else if (speed > 1.6) say('少し力が強すぎたかも。');
+      else say('指の跡に、つやが生まれた。');
+    }
     lastHit = hit;
   }
 
@@ -552,6 +587,7 @@ let accumulator = 0;
 function dryStep(dt: number) {
   dryElapsed += dt;
   water = Math.max(0.035, 0.88 * Math.exp(-dryElapsed / 27));
+  if (dryElapsed > 9 && dryElapsed < 9.04) say('色が明るく、粉っぽくなってきた。');
   hardness = clamp(0.12 + (0.88 - water) * 1.06, 0.12, 0.98);
 
   // 乾燥しすぎると、形の歪みが大きい場所ほど割れやすい。
