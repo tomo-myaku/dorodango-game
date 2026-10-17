@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#e8e3d9">
+  <title>土と手 — 泥団子</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: #e8e3d9;
+      color: #39392f;
+      font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      overscroll-behavior: none;
+    }
+    button { font: inherit; cursor: pointer; }
+    button:focus-visible { outline: 3px solid #85896b; outline-offset: 4px; }
+    #app {
+      max-width: 1000px;
+      height: 100dvh;
+      min-height: 500px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      padding: max(18px, env(safe-area-inset-top)) 22px
+               max(18px, env(safe-area-inset-bottom));
+    }
+    header { display: flex; justify-content: space-between; align-items: center; }
+    h1 { font-family: serif; font-size: 23px; font-weight: 500; letter-spacing: .2em; }
+    .edition { font-size: 10px; letter-spacing: .15em; color: #77786b; }
+    nav { display: flex; gap: 22px; margin-top: 14px; }
+    nav span { font-size: 11px; color: #929185; padding-bottom: 8px; }
+    nav span.active { color: #39392f; border-bottom: 1px solid; }
+    #view {
+      flex: 1;
+      min-height: 170px;
+      position: relative;
+      touch-action: none;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+    #view::after {
+      content: "土にふれる";
+      position: absolute;
+      bottom: 10px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      pointer-events: none;
+      color: #858376;
+      font-size: 10px;
+      letter-spacing: .24em;
+    }
+    footer { text-align: center; padding-top: 12px; }
+    #title { font: 25px serif; letter-spacing: .14em; margin: 0 0 12px; }
+    #hint {
+      font-size: 12px; line-height: 1.9;
+      color: #727264; min-height: 46px; margin: 0;
+    }
+    .actions {
+      display: flex; justify-content: center;
+      gap: 10px; margin-top: 18px;
+    }
+    button {
+      border: 1px solid #bcbcae; border-radius: 30px;
+      min-height: 46px; padding: 10px 23px;
+      background: transparent; color: #424438;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button.primary { background: #474e3c; border-color: #474e3c; color: #f3f1e8; }
+    button[hidden], [hidden] { display: none !important; }
+    #results { margin: 12px auto 0; max-width: 430px; }
+    #grades { display: flex; justify-content: space-around; gap: 10px; }
+    #grades span { font-size: 10px; color: #77786b; }
+    #grades b { display: block; margin-top: 5px; font-size: 16px; font-weight: 400; color: #414438; }
+    #review { font-size: 12px; line-height: 1.7; margin: 12px 0 0; }
+    .bottom {
+      display: flex; justify-content: space-between;
+      margin-top: 18px; font-size: 9px; letter-spacing: .08em; color: #89897b;
+    }
+    @media (max-height: 680px) {
+      #app { padding-top: 8px; padding-bottom: 10px; }
+      h1 { margin: 8px 0; font-size: 20px; }
+      nav { margin-top: 5px; }
+      footer { padding-top: 4px; }
+      #title { font-size: 21px; margin-bottom: 5px; }
+      .actions { margin-top: 8px; }
+      .bottom { margin-top: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <header>
+      <h1>土と手</h1>
+      <span class="edition">泥団子の小さな実験室</span>
+    </header>
+    <nav aria-label="制作工程">
+      <span>01 丸める</span>
+      <span>02 乾かす</span>
+      <span>03 磨く</span>
+      <span>04 眺める</span>
+    </nav>
+    <div id="view" aria-label="操作できる3Dの泥団子"></div>
+    <footer>
+      <h2 id="title"></h2>
+      <p id="hint" aria-live="polite"></p>
+      <section id="results" hidden>
+        <div id="grades"></div>
+        <p id="review"></p>
+      </section>
+      <div class="actions">
+        <button id="mode" hidden>回すに切替</button>
+        <button id="next" class="primary">乾かしはじめる</button>
+        <button id="retry" hidden>もう一度つくる</button>
+      </div>
+      <div class="bottom">
+        <span>急がず、手のなかで。</span>
+        <span id="seed"></span>
+      </div>
+    </footer>
+  </main>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
