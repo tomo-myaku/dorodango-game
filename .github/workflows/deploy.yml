@@ -31,6 +31,23 @@ jobs:
         run: npm install
       - name: Typecheck and build
         run: npm run build -- --base=/dorodango-game/
+      # Keep v0.1 at the root. A separately built v0.2 prototype lives at
+      # /preview/ for side-by-side play-testing, without merging the source.
+      - name: Checkout v0.2 preview branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/v0.2-clay-color-and-feedback
+          path: preview-src
+      - name: Install preview dependencies
+        working-directory: preview-src
+        run: npm install
+      - name: Typecheck and build v0.2 preview
+        working-directory: preview-src
+        run: npm run build -- --base=/dorodango-game/preview/
+      - name: Add the preview to the site
+        run: |
+          mkdir -p dist/preview
+          cp -a preview-src/dist/. dist/preview/
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
