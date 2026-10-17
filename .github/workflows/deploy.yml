@@ -48,6 +48,15 @@ jobs:
         run: |
           mkdir -p dist/preview
           cp -a preview-src/dist/. dist/preview/
+      - name: Checkout rainy-day playground
+        uses: actions/checkout@v4
+        with:
+          ref: feature/playground-rainy-earth
+          path: playground-src
+      - name: Add rainy-day playground to site
+        run: |
+          mkdir -p dist/playground
+          cp playground-src/public/playground/index.html dist/playground/index.html
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
