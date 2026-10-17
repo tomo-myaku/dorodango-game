@@ -43,14 +43,33 @@ const groundMat=new THREE.MeshStandardMaterial({color:'#705339',roughness:1});
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(30,30),groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=-.98;scene.add(ground);
 function rng(seed){return()=>{seed=(Math.imul(1664525,seed)+1013904223)>>>0;return seed/4294967296;}}
 const random=rng(23);
-const crumbs=[];
-const earthMaterials=['#5c402d','#78523c','#8f6748','#443627','#9b7352'].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1}));
-for(let i=0;i<160;i++){
- const s=.018+random()*.12;const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(s,0),earthMaterials[Math.floor(random()*earthMaterials.length)]);
- mesh.position.set((random()-.5)*8,-.94+s*.35,(random()-.5)*5);mesh.rotation.set(random()*3,random()*3,random()*3);scene.add(mesh);crumbs.push(mesh);
+// Fine compacted earth, not a gravel path. Shallow depressions reveal dark wet soil.
+const groundGeo=new THREE.PlaneGeometry(30,30,64,64);
+groundGeo.rotateX(-Math.PI/2);
+const gp=groundGeo.getAttribute('position');
+for(let i=0;i<gp.count;i++){
+ const x=gp.getX(i),z=gp.getZ(i);
+ const uneven=Math.sin(x*2.8+Math.cos(z*2.2))*0.019+Math.sin(z*5.1+x*3.3)*0.009;
+ gp.setY(i,uneven);
 }
-const speckles=[];
-for(let i=0;i<20;i++){const m=new THREE.Mesh(new THREE.PlaneGeometry(.012+random()*.025,.16+random()*.24),new THREE.MeshBasicMaterial({color:'#7c986d',side:THREE.DoubleSide}));m.rotation.x=-.35;m.rotation.z=(random()-.5)*1.2;m.position.set((random()-.5)*8,-.79,-1+random()*3);scene.add(m);speckles.push(m);}
+groundGeo.computeVertexNormals();
+ground.geometry.dispose();ground.geometry=groundGeo;
+const wetTint=new THREE.Color('#402d25');
+const patches=[];
+for(let i=0;i<85;i++){
+ const x=(random()-.5)*8,z=(random()-.5)*5;
+ const r=.09+random()*.29;
+ const mat=new THREE.MeshStandardMaterial({color:i%4===0?'#5e4735':'#866344',roughness:1,transparent:true,opacity:.20+random()*.14,depthWrite:false});
+ const m=new THREE.Mesh(new THREE.CircleGeometry(r,12),mat);
+ m.rotation.x=-Math.PI/2;m.position.set(x,-.953,z);scene.add(m);patches.push(m);
+}
+const footprints=[];
+function revealEarth(x,z,strength=.08){
+ const m=new THREE.Mesh(new THREE.CircleGeometry(.13+strength*.85,18),
+   new THREE.MeshStandardMaterial({color:wetTint,roughness:1,transparent:true,opacity:.45,depthWrite:false}));
+ m.rotation.x=-Math.PI/2;m.position.set(x,-.935,z);scene.add(m);footprints.push(m);
+ if(footprints.length>34){const old=footprints.shift();scene.remove(old);old.geometry.dispose();old.material.dispose();}
+}
 const base=new THREE.SphereGeometry(1,48,32),pos=base.getAttribute('position');const vertices=Float32Array.from(pos.array);
 const lumpMat=new THREE.MeshStandardMaterial({color:'#513728',roughness:.98,flatShading:false});
 const ball=new THREE.Mesh(base,lumpMat);ball.position.set(0,-.37,.3);ball.scale.setScalar(.001);scene.add(ball);
@@ -86,7 +105,7 @@ function ui(){
 }
 function addSoil(delta){
  if(step!=='collect')return;amount=Math.min(1,amount+delta);
- for(let i=0;i<crumbs.length;i++){const c=crumbs[i];if(i<amount*80)c.visible=false;}
+ revealEarth((random()-.5)*1.9,.5+(random()-.5)*1.4,delta);
  ball.rotation.x+=.03;changed=true;ui();
 }
 function compress(delta){
@@ -98,7 +117,7 @@ gather.addEventListener('pointerdown',e=>{e.preventDefault();gather.setPointerCa
 let holding=false;gather.addEventListener('pointerdown',()=>holding=true);
 ['pointerup','pointercancel','lostpointercapture'].forEach(t=>gather.addEventListener(t,()=>{holding=false;drag=false;}));
 knead.addEventListener('click',()=>{if(step==='collect'&&amount>=.30){step='knead';shape=0;compress(.06);}else compress(.07);ui();});
-function reset(){amount=0;shape=0;step='collect';drag=false;holding=false;ball.rotation.set(0,0,0);crumbs.forEach(m=>m.visible=true);knead.textContent='ぎゅっと握る';changed=true;ui();}
+function reset(){amount=0;shape=0;step='collect';drag=false;holding=false;ball.rotation.set(0,0,0);footprints.forEach(m=>{scene.remove(m);m.geometry.dispose();m.material.dispose();});footprints.length=0;knead.textContent='ぎゅっと握る';changed=true;ui();}
 restart.addEventListener('click',reset);
 const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
 function touchGround(x,y){const r=renderer.domElement.getBoundingClientRect();mouse.set(((x-r.left)/r.width)*2-1,-((y-r.top)/r.height)*2+1);ray.setFromCamera(mouse,camera);return ray.intersectObject(ground).length>0;}
