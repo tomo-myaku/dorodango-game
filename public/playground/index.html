@@ -74,7 +74,9 @@ function revealEarth(x,z,strength=.08){
 const base=new THREE.SphereGeometry(1,48,32),pos=base.getAttribute('position');const vertices=Float32Array.from(pos.array);
 const lumpMat=new THREE.MeshStandardMaterial({color:'#513728',roughness:.98,flatShading:false});
 const ball=new THREE.Mesh(base,lumpMat);ball.position.set(0,-.37,.3);ball.scale.setScalar(.001);scene.add(ball);
-const soilClumps=[];for(let i=0;i<35;i++){const m=new THREE.Mesh(new THREE.IcosahedronGeometry(.04+random()*.055,0),earthMaterials[i%earthMaterials.length]);ball.add(m);soilClumps.push(m);}
+// A fine, cohesive mud surface: no pebbles embedded in the ball.
+// Subtle unevenness comes from the deforming sphere geometry itself.
+const soilClumps=[];
 let amount=0,shape=0,step='collect',drag=false,lastX=0,lastY=0,changed=false,particles=[];
 function updateShape(){
  let avg=0;for(let i=0;i<pos.count;i++){
