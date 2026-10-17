@@ -58,6 +58,10 @@ jobs:
         run: |
           mkdir -p dist/playground
           cp playground-src/public/playground/index.html dist/playground/index.html
+      - name: Add v0.4 soil-to-palm prototype
+        run: |
+          mkdir -p dist/playground-v04
+          cp playground-src/public/playground-v04/index.html dist/playground-v04/index.html
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
