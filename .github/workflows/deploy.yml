@@ -48,7 +48,7 @@ jobs:
         run: |
           mkdir -p dist/preview
           cp -a preview-src/dist/. dist/preview/
-      # Republish the latest playground branch while preserving the artisan versions.
+      # Republish the repaired playground branch while preserving the artisan versions.
       - name: Checkout rainy-day playground
         uses: actions/checkout@v4
         with:
