@@ -1,0 +1,76 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>土と手 — ざっざっざ</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#e5dfd2;color:#3c3b31;font-family:-apple-system,"Hiragino Kaku Gothic ProN",sans-serif}
+main{margin:auto;max-width:850px;height:100dvh;padding:12px 14px max(12px,env(safe-area-inset-bottom));display:flex;flex-direction:column}
+header{display:flex;justify-content:space-between;align-items:center}h1{font:normal 25px serif;letter-spacing:.12em;margin:8px 0}small{font-size:11px;color:#7b7868}
+#field{flex:1;min-height:260px;position:relative;overflow:hidden;border-radius:18px;background:#9e8267;touch-action:none}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#overlay{position:absolute;top:15px;left:12px;right:12px;text-align:center;color:#fff9e9;text-shadow:0 1px 5px #3d2b1e;font-size:13px;pointer-events:none}
+#hint{text-align:center;font-size:13px;line-height:1.8;min-height:44px;margin:12px 2px}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+button{font:inherit;font-size:13px;border:1px solid #a99d85;background:#f4efe4;color:#444031;border-radius:26px;padding:12px 18px;min-height:46px}
+button.primary{background:#4f6345;color:white;border-color:#4f6345}button:disabled{opacity:.35}
+footer{display:flex;justify-content:space-between;margin-top:12px;color:#797464;font-size:11px}
+@media(max-height:650px){main{padding-top:4px}h1{font-size:20px;margin:5px 0}#hint{margin:5px 0;min-height:33px}}
+</style></head><body><main><header><h1>土と手 <small>— 雨あがり</small></h1><small>どろんこ編 v0.4</small></header>
+<div id="field"><canvas id="canvas"></canvas><div id="overlay">昨日の雨が、まだ土の下に。</div></div>
+<p id="hint">地面を指で「ざっ、ざっ」とかき集めよう。<br>集まった土は、右下の手のひらへ。</p>
+<div class="actions"><button id="shape" class="primary" disabled>土を握って芯にする</button><button id="again">はじめから</button></div>
+<footer><span id="stage">土を集める</span><span id="progress">手のひらの土 0%</span></footer>
+</main>
+<script>
+const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
+const hint=document.getElementById('hint'),overlay=document.getElementById('overlay'),stage=document.getElementById('stage'),progress=document.getElementById('progress'),shapeButton=document.getElementById('shape');
+let w=0,h=0,dpr=1,strokes=[],trail=[],particles=[],gathered=0,kneaded=0,phase='gather',down=false,last=null,dragSum=0;
+let seed=193;function rand(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;}
+const soil=[];for(let i=0;i<850;i++)soil.push({x:rand(),y:rand()*.74,r:.4+rand()*2.1,v:rand()});
+function fit(){const r=canvas.getBoundingClientRect();w=r.width;h=r.height;dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);}new ResizeObserver(fit).observe(canvas);fit();
+function palm(){return {x:w*.75,y:h*.82};}
+function drawPalm(){
+ const p=palm();ctx.save();ctx.translate(p.x,p.y);ctx.rotate(-.11);
+ ctx.fillStyle='#e6b99a';ctx.strokeStyle='#aa8069';ctx.lineWidth=2;
+ ctx.beginPath();ctx.ellipse(0,14,Math.min(w*.18,95),37,-.08,0,Math.PI*2);ctx.fill();ctx.stroke();
+ for(let i=0;i<4;i++){let x=-49+i*27;ctx.beginPath();ctx.ellipse(x,-5-i%2*3,15,45,-.05,Math.PI,Math.PI*2);ctx.fill();ctx.stroke();}
+ ctx.beginPath();ctx.ellipse(-68,16,21,31,-.65,Math.PI*1.08,Math.PI*1.95);ctx.fill();ctx.stroke();
+ ctx.restore();
+}
+function dirt(x,y,rad,wet=false){
+ const g=ctx.createRadialGradient(x,y,1,x,y,rad);g.addColorStop(0,wet?'#402c21':'#64482f');g.addColorStop(.72,wet?'#513525':'#73563a');g.addColorStop(1,'rgba(83,55,34,0)');
+ ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.fill();
+}
+function render(){
+ if(!w||!h){requestAnimationFrame(render);return;}
+ let gr=ctx.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#9b7c58');gr.addColorStop(1,'#7c6148');ctx.fillStyle=gr;ctx.fillRect(0,0,w,h);
+ for(const s of soil){const x=s.x*w,y=s.y*h;ctx.fillStyle=s.v>.65?'rgba(192,153,104,.18)':'rgba(48,32,18,.12)';ctx.beginPath();ctx.arc(x,y,s.r,0,Math.PI*2);ctx.fill();}
+ for(const s of strokes){dirt(s.x*w,s.y*h,s.r,true);ctx.strokeStyle='rgba(47,29,17,.30)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(s.x*w,s.y*h,s.r*.45,0,Math.PI);ctx.stroke();}
+ drawPalm();const p=palm();
+ if(gathered>0){const n=Math.min(95,Math.round(gathered*95));ctx.save();ctx.beginPath();ctx.ellipse(p.x,p.y+5,Math.min(52,8+gathered*48),Math.min(24,4+gathered*20),-.16,0,Math.PI*2);ctx.fillStyle='#4b3324';ctx.fill();ctx.restore();
+ for(let i=0;i<n;i++){const theta=i*2.399,r=Math.sqrt((i+.5)/n),rx=(10+gathered*36)*r,ry=(4+gathered*13)*r;ctx.fillStyle=i%3===0?'#6f4830':'#573a2a';ctx.beginPath();ctx.arc(p.x+Math.cos(theta)*rx,p.y+5+Math.sin(theta)*ry,1.4+(i%4)*.55,0,Math.PI*2);ctx.fill();}}
+ if(phase==='knead'||phase==='done'){const sz=15+gathered*27+ kneaded*6;ctx.beginPath();const p=palm();for(let i=0;i<=70;i++){let a=i/70*Math.PI*2,r=sz*(1+(1-kneaded)*.13*Math.sin(a*5+1.1));let x=p.x+Math.cos(a)*r,y=p.y-12+Math.sin(a)*r*.83;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.closePath();const g=ctx.createRadialGradient(p.x-sz*.5,p.y-sz*.8,3,p.x,p.y,sz*1.6);g.addColorStop(0,'#896449');g.addColorStop(1,'#3e291f');ctx.fillStyle=g;ctx.fill();ctx.strokeStyle='#62432d';ctx.stroke();}
+ for(const a of particles){ctx.fillStyle='#513624';ctx.beginPath();ctx.arc(a.x,a.y,1.5+a.r,0,7);ctx.fill();a.x+=a.vx;a.y+=a.vy;a.life--;}
+ particles=particles.filter(a=>a.life>0);
+ requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+function ui(){
+ shapeButton.disabled=(phase==='gather'&&gathered<.42)||phase==='done';
+ shapeButton.textContent=phase==='gather'?'土を握って芯にする':phase==='knead'?'ぎゅっと握る':'芯ができた';
+ progress.textContent=phase==='gather'?'手のひらの土 '+Math.round(gathered*100)+'%':'丸め具合 '+Math.round(kneaded*100)+'%';
+ stage.textContent=phase==='gather'?'ざっざっざ：土集め':phase==='knead'?'ぎゅっ、ころころ':'小さな芯が完成';
+ overlay.textContent=phase==='gather'?'土を寄せると、下の湿った土が見えてくる。':phase==='knead'?'手のひらの土を、握ってまとめる。':'小さな泥団子の芯ができた。';
+ hint.innerHTML=phase==='gather'?'地面を短く何度もなぞろう。<br>土が手元にたまったら、握ってみよう。':phase==='knead'?'手のひらの泥を指でこねよう。<br>ボタンでも少しずつ握れる。':'ここまでが最初の試作。<br>次は土を足して大きくしていこう。';
+}
+function move(e){
+ if(!down||!last)return;const box=canvas.getBoundingClientRect(),x=e.clientX-box.left,y=e.clientY-box.top,dx=x-last.x,dy=y-last.y,d=Math.hypot(dx,dy);
+ if(d<5)return;last={x,y};
+ if(phase==='gather'&&y<h*.73&&x<w*.84){const amount=Math.min(.055,d/900);gathered=Math.min(1,gathered+amount);strokes.push({x:x/w,y:y/h,r:7+Math.random()*8});if(strokes.length>95)strokes.shift();
+ const p=palm();for(let i=0;i<4;i++)particles.push({x,y,r:Math.random()*2,vx:(p.x-x)/32+(Math.random()-.5)*2,vy:(p.y-y)/32,life:16});ui();
+ }else if(phase==='knead'){kneaded=Math.min(1,kneaded+Math.min(.06,d/500));if(kneaded>=1)phase='done';ui();}
+}
+canvas.addEventListener('pointerdown',e=>{down=true;const b=canvas.getBoundingClientRect();last={x:e.clientX-b.left,y:e.clientY-b.top};canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointermove',move);
+for(const n of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(n,()=>{down=false;last=null;});
+shapeButton.addEventListener('click',()=>{if(phase==='gather'&&gathered>=.42){phase='knead';kneaded=.06;}else if(phase==='knead'){kneaded=Math.min(1,kneaded+.1);if(kneaded>=1)phase='done';}ui();});
+document.getElementById('again').addEventListener('click',()=>{strokes=[];particles=[];gathered=0;kneaded=0;phase='gather';ui();});ui();
+</script></body></html>
